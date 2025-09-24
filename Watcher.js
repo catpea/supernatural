@@ -116,7 +116,7 @@ export class Watcher {
             }
 
             // Trigger subscriber
-            subscriberFn(prop);
+            if(subscriberFn) subscriberFn(prop);
 
             return result;
           };
@@ -148,7 +148,7 @@ export class Watcher {
           }
 
           // Trigger subscriber
-          subscriberFn(prop);
+          if(subscriberFn) subscriberFn(prop);
 
           return result;
         }

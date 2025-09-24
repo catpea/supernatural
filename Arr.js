@@ -3,9 +3,9 @@ import {Watcher} from './Watcher.js';
 
 export class Arr extends Array {
   #signal;
-  constructor(...a) {
-    super(...a);
-    this.#signal = new Signal(this);
+  constructor(data, options) {
+    data?super(...data):super();
+    this.#signal = new Signal(this, options);
     const members = [
       // RegExp for numeric indexes
       /^\d+$/,

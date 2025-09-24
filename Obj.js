@@ -3,9 +3,10 @@ import {Watcher} from './Watcher.js';
 
 export class Obj {
   #signal;
-  constructor(...a) {
-    super(...a);
-    this.#signal = new Signal(this);
+  constructor(data, options) {
+    if (data) Object.apply(this, data);
+
+    this.#signal = new Signal(this, options);
     const members = [
       // Watch all property assignments
       {
