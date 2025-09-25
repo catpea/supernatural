@@ -1,6 +1,9 @@
 import { Walker } from "./Walker.js";
 
 export class Signal {
+
+  static Symbol = Symbol('Signal');
+
   #rev = 1;
   #revId = this.#uuid();
   #conflicts = [];
