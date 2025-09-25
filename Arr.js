@@ -12,7 +12,7 @@ export class Arr extends Array {
         name: /^\d+$/,
         after: () => this[Signal.Symbol].notify()
       },
-      
+
       {
         name: (prop) => ['push', 'pop', 'shift', 'unshift', 'splice', 'sort', 'reverse', 'length'].includes(prop),
         after: () => this[Signal.Symbol].notify()

@@ -33,7 +33,7 @@ export class Builder {
     // Build nested structure
     const finalTarget = segments.reduce((current, { key, isArray }, index) => {
 
-      console.log('CURRENT:', current );
+      console.log('CURRENT:', key, current );
 
 
       // Skip the last segment as it's the final destination

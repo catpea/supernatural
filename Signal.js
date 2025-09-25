@@ -33,7 +33,7 @@ export class Signal {
       name: "unnamed",
 
       structural: false, // serialize structural information only
-      conflicting: 16,
+      maxConflicting: 16,
       storageSeparator: "--",
 
       persistence: false,
