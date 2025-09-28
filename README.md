@@ -46,3 +46,27 @@ obj.newProp = 'Hello';
 console.log('Final object:', obj)
 
 ```
+
+## Str and Num Limitation
+
+Unlike Arr and Obj, Str and Num Are Not Possible
+
+The best we could do is:
+
+const firstName = new Str('Alice');
+firstName.subscribe(v => console.log('WOW!!!', v), false);
+firstName.value = 'Alicia'; // Triggers: WOW!!! Alicia
+
+Which is already covered by:
+
+const firstName = new Signal('Alice');
+firstName.subscribe(v => console.log('WOW!!!', v), false);
+firstName.value = 'Alicia'; // Triggers: WOW!!! Alicia
+
+Strings are primitives in JavaScript.
+
+The problem is: firstName = 'Alicia'
+
+This reassigns the variable itself, not the string's internal value.
+
+In JavaScript, you can't intercept variable reassignment.
