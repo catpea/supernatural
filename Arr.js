@@ -1,14 +1,115 @@
 import {Signal} from './Signal.js';
 import {Watcher} from './Watcher.js';
 
-export class Arr extends Array {
-  #previousState;
+// Helper to diff two arrays
+function diff(oldArray, newArray) {
+  const added = [];
+  const removed = [];
+  const moved = [];
 
+  // Find removed items
+  for (let i = 0; i < oldArray.length; i++) {
+    if (!newArray.includes(oldArray[i])) {
+      removed.push(oldArray[i]);
+    }
+  }
+
+  // Find added items
+  for (let i = 0; i < newArray.length; i++) {
+    if (!oldArray.includes(newArray[i])) {
+      added.push(newArray[i]);
+    }
+  }
+
+  // Find moved items (exist in both but at different indices)
+  for (let i = 0; i < newArray.length; i++) {
+    const item = newArray[i];
+    const oldIndex = oldArray.indexOf(item);
+    const newIndex = i;
+
+    if (oldIndex !== -1 && oldIndex !== newIndex && !added.includes(item)) {
+      moved.push({
+        item,
+        from: oldIndex,
+        to: newIndex
+      });
+    }
+  }
+
+  return { added, removed, moved };
+}
+
+// Generate DOM-style patch operations
+function patchDOM(oldArray, newArray, changes) {
+  const operations = [];
+
+  // Process removals (in reverse order to maintain indices)
+  const removalIndices = [];
+  for (let i = 0; i < oldArray.length; i++) {
+    if (changes.removed.includes(oldArray[i])) {
+      removalIndices.push(i);
+    }
+  }
+  removalIndices.reverse().forEach(index => {
+    operations.push({ op: 'removeChild', index });
+  });
+
+  // Process additions and moves
+  for (let i = 0; i < newArray.length; i++) {
+    const item = newArray[i];
+    const oldIndex = oldArray.indexOf(item);
+
+    if (changes.added.includes(item)) {
+      // New item - append or insert
+      if (i === newArray.length - 1) {
+        operations.push({ op: 'appendChild', value: item });
+      } else {
+        operations.push({ op: 'insertBefore', index: i, value: item });
+      }
+    }
+  }
+
+  return operations;
+}
+
+// Generate JS-style patch operations
+function patchJS(oldArray, newArray, changes) {
+  const operations = [];
+
+  // Build a minimal set of splice operations
+  let offset = 0;
+
+  // Track items to remove
+  for (let i = 0; i < oldArray.length; i++) {
+    if (changes.removed.includes(oldArray[i])) {
+      operations.push({
+        op: 'splice',
+        start: i - offset,
+        deleteCount: 1
+      });
+      offset++;
+    }
+  }
+
+  // Track items to add
+  for (let i = 0; i < newArray.length; i++) {
+    const item = newArray[i];
+    if (changes.added.includes(item)) {
+      operations.push({
+        op: 'splice',
+        start: i,
+        deleteCount: 0,
+        value: item
+      });
+    }
+  }
+
+  return operations;
+}
+
+export class Arr extends Array {
   constructor(data, options) {
     data ? super(...data) : super();
-
-    // Store initial state for diffing
-    this.#previousState = [...this];
 
     this[Signal.Symbol] = new Signal(this, options);
 
@@ -27,99 +128,43 @@ export class Arr extends Array {
     return Watcher.watch(this, members);
   }
 
-  // Helper to diff two arrays
-  #diff(oldArray, newArray) {
-    const added = [];
-    const removed = [];
-    const moved = [];
 
-    // Find removed items
-    for (let i = 0; i < oldArray.length; i++) {
-      if (!newArray.includes(oldArray[i])) {
-        removed.push(oldArray[i]);
-      }
+  subscribe(subscriber, options = {}) {
+    // Short circuit - no diffing needed
+    if (options.diff === undefined) {
+      return this[Signal.Symbol].subscribe(subscriber);
     }
 
-    // Find added items
-    for (let i = 0; i < newArray.length; i++) {
-      if (!oldArray.includes(newArray[i])) {
-        added.push(newArray[i]);
-      }
-    }
+    // Each subscriber gets its own previousState in closure
+    let previousState = [ ];
 
-    // Find moved items (exist in both but at different indices)
-    for (let i = 0; i < newArray.length; i++) {
-      const item = newArray[i];
-      const oldIndex = oldArray.indexOf(item);
-      const newIndex = i;
-
-      if (oldIndex !== -1 && oldIndex !== newIndex && !added.includes(item)) {
-        moved.push({
-          item,
-          from: oldIndex,
-          to: newIndex
-        });
-      }
-    }
-
-    return { added, removed, moved };
-  }
-
-  subscribe(subscriber, options) {
     // Wrapper that computes changes before calling subscriber
     const changeComputer = (value) => {
-      // Compute the diff
-      const changes = this.#diff(this.#previousState, value);
+
+      console.log('aaa changeComputer', previousState, value)
+
+      // Compute the changes
+      const changes = diff(previousState, value);
+
+      // Generate patch operations based on format
+      let patch = undefined;
+      if (options.diff === 'DOM') {
+        patch = patchDOM(previousState, value, changes);
+      } else if (options.diff === 'JS') {
+        patch = patchJS(previousState, value, changes);
+      }
 
       // Update previous state for next comparison
-      this.#previousState = [...value];
+      previousState = [...value];
 
-      // Call subscriber with value and changes
-      subscriber(value, changes);
+      // Call subscriber with value, patch, and changes
+      subscriber(value, patch, changes);
     };
 
     // Subscribe to signal with our wrapper
-    const unsubscribe = this[Signal.Symbol].subscribe(changeComputer, options);
-
+    const unsubscribe = this[Signal.Symbol].subscribe(changeComputer);
     return unsubscribe;
   }
+
+
 }
-
-
-// // Usage Example
-// console.log('=== Arr with Change Tracking ===\n');
-
-// const arr = new Arr([1, 2, 3]);
-
-// arr.subscribe((value, {added, removed, moved}) => {
-//   console.log('Array:', [...value]);
-//   if (added.length) console.log('  Added:', added);
-//   if (removed.length) console.log('  Removed:', removed);
-//   if (moved.length) console.log('  Moved:', moved);
-//   console.log('');
-// }, false);
-
-// console.log('Initial array:', [...arr]);
-
-// console.log('\n--- Testing push(4) ---');
-// arr.push(4);
-
-// console.log('--- Testing arr[0] = 99 (replace) ---');
-// arr[0] = 99;
-
-// console.log('--- Testing pop() ---');
-// arr.pop();
-
-// console.log('--- Testing unshift(0) ---');
-// arr.unshift(0);
-
-// console.log('--- Testing reverse() ---');
-// arr.reverse();
-
-// console.log('--- Testing splice(1, 1, 100) ---');
-// arr.splice(1, 1, 100);
-
-// console.log('--- Testing sort() ---');
-// arr.sort((a, b) => a - b);
-
-// console.log('Final array:', [...arr]);
